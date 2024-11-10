@@ -1,0 +1,13 @@
+[package]
+name = "smol_traces"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# error handling
+simple_error = { git = "https://github.com/brandonros/simple_error.git", rev = "049dbf9bf5b5b918b93e60767b7ea62df28e95af" }
+# async runtime
+smol = { git = "https://github.com/brandonros/smol.git", rev = "e593cac01d2ee4a1241b8c292f61b8a6d800bb08" }
+# http
+http = "1.0.0"
+http_client = { git = "https://github.com/brandonros/http_client.git", rev = "a88f8c2b631945c3f353a7255a1cf7ab153d6287" }
