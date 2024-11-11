@@ -11,3 +11,6 @@ smol = { git = "https://github.com/brandonros/smol.git", rev = "e593cac01d2ee4a1
 # http
 http = "1.0.0"
 http_client = { git = "https://github.com/brandonros/http_client.git", rev = "a88f8c2b631945c3f353a7255a1cf7ab153d6287" }
+miniserde = "0.1.40"
+rand = "0.8.5"
+hex = "0.4.3"
