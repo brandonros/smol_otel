@@ -79,15 +79,23 @@ impl Drop for SpanGuard {
                 name: name_clone,
                 start_time_unix_nano: start_time.to_string(),
                 end_time_unix_nano: end_time.to_string(),
-                kind: 1, // TODO
-                attributes: vec![],
-                events: vec![],
+                kind: SpanKind::Internal as i64,
+                flags: TraceFlags::Sampled as i64,
                 trace_state: "".to_string(),
-                flags: 1, // TODO
-                dropped_attributes_count: 0, // TODO
-                dropped_events_count: 0, // TODO
+                attributes: {
+                    let mut map = HashMap::new();
+                    map.insert("code.filepath".to_string(), "src/main.rs".to_string());
+                    map.insert("code.namespace".to_string(), "chess_bot".to_string());
+                    map.insert("code.lineno".to_string(), "71".to_string());
+                    map.insert("thread.id".to_string(), "1".to_string());
+                    map.insert("thread.name".to_string(), "main".to_string());
+                    Attributes::from(map).0
+                },
+                events: vec![],
                 links: vec![],
                 dropped_links_count: 0, // TODO
+                dropped_attributes_count: 0, // TODO
+                dropped_events_count: 0, // TODO                
                 status: Status {
                     message: "".to_string(),
                     code: 0,

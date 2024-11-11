@@ -2,6 +2,24 @@ use std::collections::HashMap;
 
 use miniserde::Serialize;
 
+#[allow(dead_code)]
+#[derive(Serialize)]
+#[repr(i64)]
+pub enum SpanKind {
+    Unspecified = 0,  // Default
+    Internal = 1,     // Internal operations within an application
+    Server = 2,       // Server-side handling of a request
+    Client = 3,       // Client-side of a request
+    Producer = 4,     // Initiator of an asynchronous request
+    Consumer = 5,     // Handler of an asynchronous request
+}
+
+#[derive(Serialize)]
+#[repr(i64)]
+pub enum TraceFlags {
+    Sampled = 1
+}
+
 #[derive(Serialize)]
 pub struct ResourceSpansRoot {
     #[serde(rename = "resourceSpans")]
@@ -62,7 +80,7 @@ pub struct Span {
     pub start_time_unix_nano: String,
     #[serde(rename = "endTimeUnixNano")]
     pub end_time_unix_nano: String,
-    pub kind: i64,
+    pub kind: i64, // SpanKind as int
     pub attributes: Vec<Attribute>,
     pub events: Vec<Event>,
     #[serde(rename = "traceState")]
