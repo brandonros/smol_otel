@@ -604,6 +604,7 @@ dependencies = [
  "hex",
  "http",
  "http_client",
+ "log",
  "miniserde",
  "rand",
  "simple_error 0.1.0 (git+https://github.com/brandonros/simple_error.git?rev=049dbf9bf5b5b918b93e60767b7ea62df28e95af)",

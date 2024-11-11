@@ -40,13 +40,13 @@ pub struct Resource {
     pub dropped_attributes_count: i64,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct Attribute {
     pub key: String,
     pub value: AttributeValue,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct AttributeValue {
     #[serde(rename = "stringValue")]
     pub string_value: String,
@@ -96,7 +96,7 @@ pub struct Span {
     pub status: Status,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct Event {
     pub name: String,
     #[serde(rename = "timeUnixNano")]

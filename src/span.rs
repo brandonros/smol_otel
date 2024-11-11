@@ -1,12 +1,13 @@
 use std::{cell::RefCell, collections::HashMap, sync::Arc};
-
+use std::sync::Mutex as SyncMutex;
 use rand::Rng as _;
 use smol::Executor;
 
 use crate::{structs::*, tracer::OtlpTracer};
 
 thread_local! {
-    static CURRENT_SPAN_CONTEXT: RefCell<Option<SpanContext>> = RefCell::new(None);
+    pub static CURRENT_SPAN_CONTEXT: RefCell<Option<SpanContext>> = RefCell::new(None);
+    pub static CURRENT_SPAN_GUARD: RefCell<Option<Arc<SpanGuard>>> = RefCell::new(None);
 }
 
 fn generate_trace_id() -> String {
@@ -24,11 +25,12 @@ fn generate_span_id() -> String {
 }
 
 #[derive(Clone)]
-struct SpanContext {
+pub struct SpanContext {
     trace_id: String,
     span_id: String,
 }
 
+#[derive(Clone)]
 pub struct SpanGuard {
     executor: Arc<Executor<'static>>,
     tracer: Arc<OtlpTracer>,
@@ -41,11 +43,12 @@ pub struct SpanGuard {
     parent_context: Option<SpanContext>,
     thread_id: String,
     thread_name: String,
+    events: Arc<SyncMutex<Vec<Event>>>,
 }
 
 impl SpanGuard {
-    #[track_caller] // This enables caller location tracking
-    pub fn start(executor: &Arc<Executor<'static>>, tracer: &Arc<OtlpTracer>, name: &str) -> Self {
+    #[track_caller]
+    pub fn start(executor: &Arc<Executor<'static>>, tracer: &Arc<OtlpTracer>, name: &str) -> Arc<Self> {
         let location = std::panic::Location::caller();
 
         // Capture the parent context before creating new span
@@ -73,7 +76,8 @@ impl SpanGuard {
         let thread_id = format!("{:?}", thread.id());
         let thread_name = thread.name().unwrap_or("unnamed").to_string();
         
-        Self {
+        // Build guard
+        let guard = Self {
             executor: executor.clone(),
             tracer: tracer.clone(),
             start_time: std::time::SystemTime::now()
@@ -88,6 +92,38 @@ impl SpanGuard {
             parent_context,
             thread_id,
             thread_name,
+            events: Arc::new(SyncMutex::new(vec![])),
+        };
+
+        // Wrap the guard in an Arc
+        let guard = Arc::new(guard);
+
+        // Store Arc in thread local
+        CURRENT_SPAN_GUARD.with(|current| {
+            *current.borrow_mut() = Some(guard.clone());
+        });
+
+        guard
+    }
+
+    pub fn push_event(&self, level: log::Level, args: &std::fmt::Arguments) {
+        let time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        
+        let event = Event {
+            name: args.to_string(),
+            time_unix_nano: time.to_string(),
+            attributes: {
+                let mut map = HashMap::new();
+                map.insert("log.level".to_string(), level.to_string());
+                Attributes::from(map).0
+            },
+        };
+
+        if let Ok(mut events) = self.events.lock() {
+            events.push(event);
         }
     }
 }
@@ -106,6 +142,7 @@ impl Drop for SpanGuard {
             .as_nanos();
         
         // Prepare data for span
+        let events = self.events.lock().unwrap().clone();
         let resource = Resource {
             attributes: {
                 let mut map = HashMap::new();
@@ -118,8 +155,8 @@ impl Drop for SpanGuard {
             dropped_attributes_count: 0,
         };
         let scope = Scope {
-            name: "chess-bot".to_string(), // TODO: service name?
-            version: "0.1.0".to_string(), // TODO: service version?
+            name: env!("CARGO_PKG_NAME").to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
             attributes: vec![],
             dropped_attributes_count: 0,
         };
@@ -140,15 +177,11 @@ impl Drop for SpanGuard {
                 map.insert("code.filepath".to_string(), self.file.clone());
                 map.insert("code.lineno".to_string(), self.line.to_string());
                 map.insert("code.column".to_string(), self.column.to_string());
-                map.insert("code.namespace".to_string(), module_path!().to_string());
                 map.insert("thread.id".to_string(), self.thread_id.clone());
                 map.insert("thread.name".to_string(), self.thread_name.clone());
-                
                 Attributes::from(map).0
             },
-            events: vec![
-                // TODO: log::info! macro like pushing?
-            ],
+            events,
             links: vec![],
             dropped_links_count: 0, // TODO
             dropped_attributes_count: 0, // TODO
@@ -176,5 +209,7 @@ impl Drop for SpanGuard {
             }
         });
         handle.detach();
+
+        // TODO: clear current span guard but we are already borrowed?
     }
 }

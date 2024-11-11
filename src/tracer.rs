@@ -20,6 +20,7 @@ impl OtlpTracer {
             resource_spans
         };
         let request_body = miniserde::json::to_string(&root);
+        println!("request_body: {}", request_body);
         let request_body_bytes = request_body.as_bytes().to_vec();
         let request: Request<Vec<u8>> = Request::builder()
             .method("POST")
