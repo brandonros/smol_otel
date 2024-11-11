@@ -34,6 +34,39 @@ pub struct SpanGuard {
 }
 
 impl SpanGuard {
+    fn new(
+        executor: &Arc<Executor<'static>>,
+        tracer: &Arc<OtlpTracer>,
+        name: &str,
+        status: Status,
+        kind: SpanKind,
+        events: Vec<Event>,
+        attributes: HashMap<String, String>,
+        context: SpanContext,
+        parent_context: Option<SpanContext>,
+        location: &std::panic::Location<'_>,
+        thread_id: String,
+        thread_name: String,
+    ) -> Self {
+        Self {
+            executor: executor.clone(),
+            tracer: tracer.clone(),
+            start_time: utilities::nanos(),
+            name: name.to_string(),
+            file: location.file().to_string(),
+            line: location.line(),
+            column: location.column(),
+            context,
+            kind,
+            parent_context,
+            thread_id,
+            thread_name,
+            events: Arc::new(SyncMutex::new(events)),
+            attributes: Arc::new(SyncMutex::new(attributes)),
+            status: Arc::new(SyncMutex::new(status)),
+        }
+    }
+
     #[track_caller]
     pub fn start(
         executor: &Arc<Executor<'static>>, 
@@ -44,22 +77,21 @@ impl SpanGuard {
         attributes: HashMap<String, String>
     ) -> Arc<Self> {
         let location = std::panic::Location::caller();
+        let thread = std::thread::current();
+        let thread_id = format!("{:?}", thread.id());
+        let thread_name = thread.name().unwrap_or("unnamed").to_string();
 
         // Capture the parent context before creating new span
-        let parent_context = CURRENT_SPAN_CONTEXT.with(|current| {
-            current.borrow().clone()
-        });
+        let parent_context = CURRENT_SPAN_CONTEXT.with(|current| current.borrow().clone());
         
         // Generate new span context
-        let trace_id = if let Some(parent) = &parent_context {
-            parent.trace_id.clone() // Inherit trace_id from parent
-        } else {
-            utilities::generate_trace_id()
-        };
-        let span_id = utilities::generate_span_id();
+        let trace_id = parent_context.as_ref()
+            .map(|parent| parent.trace_id.clone())
+            .unwrap_or_else(|| utilities::generate_trace_id());
+            
         let new_context = SpanContext {
-            trace_id,       
-            span_id
+            trace_id,
+            span_id: utilities::generate_span_id(),
         };
         
         // Set as current context
@@ -67,32 +99,22 @@ impl SpanGuard {
             *current.borrow_mut() = Some(new_context.clone());
         });
         
-        // Get thread info at span start
-        let thread = std::thread::current();
-        let thread_id = format!("{:?}", thread.id());
-        let thread_name = thread.name().unwrap_or("unnamed").to_string();
-        
-        // Build guard
-        let guard = Self {
-            executor: executor.clone(),
-            tracer: tracer.clone(),
-            start_time: utilities::nanos(),
-            name: name.to_string(),
-            file: location.file().to_string(),
-            line: location.line(),
-            column: location.column(),
-            context: new_context,
+        // Create and wrap the guard
+        let events = vec![];
+        let guard = Arc::new(Self::new(
+            executor,
+            tracer,
+            name,
+            status,
             kind,
+            events,
+            attributes,
+            new_context,
             parent_context,
+            location,
             thread_id,
             thread_name,
-            events: Arc::new(SyncMutex::new(vec![])),
-            attributes: Arc::new(SyncMutex::new(attributes)),
-            status: Arc::new(SyncMutex::new(status)),
-        };
-
-        // Wrap the guard in an Arc
-        let guard = Arc::new(guard);
+        ));
 
         // Store Arc in thread local
         CURRENT_SPAN_GUARD.with(|current| {
@@ -136,6 +158,9 @@ impl SpanGuard {
 
 impl Drop for SpanGuard {
     fn drop(&mut self) {        
+        // Get end time
+        let end_time = utilities::nanos();
+
         // Restore parent context
         if let Some(parent_ctx) = &self.parent_context {
             CURRENT_SPAN_CONTEXT.with(|current| {
@@ -148,13 +173,7 @@ impl Drop for SpanGuard {
             });
         }
 
-        // Get end time
-        let end_time = utilities::nanos();
-        
-        // Prepare data for span
-        let status = self.status.lock().unwrap().clone();
-        let span_attributes = self.attributes.lock().unwrap().clone();
-        let events = self.events.lock().unwrap().clone();
+        // resource
         let resource = Resource {
             attributes: {
                 let mut map = HashMap::new();
@@ -166,12 +185,21 @@ impl Drop for SpanGuard {
             },
             dropped_attributes_count: 0,
         };
+
+        // scope
         let scope = Scope {
             name: env!("CARGO_PKG_NAME").to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
             attributes: vec![],
             dropped_attributes_count: 0,
         };
+        
+        // Prepare data for span
+        let status = self.status.lock().unwrap().clone();
+        let span_attributes = self.attributes.lock().unwrap().clone();
+        let events = self.events.lock().unwrap().clone();
+        
+        // span
         let span = Span {
             trace_id: self.context.trace_id.clone(),
             span_id: self.context.span_id.clone(),
@@ -203,6 +231,8 @@ impl Drop for SpanGuard {
             dropped_events_count: 0, // TODO                
             status
         };
+
+        // resource_span
         let resource_span = ResourceSpan {
             resource,
             scope_spans: vec![ScopeSpan {
@@ -210,13 +240,14 @@ impl Drop for SpanGuard {
                 spans: vec![span],
             }],
         };
+        let resource_spans = vec![resource_span];
 
-        // Upload span
+        // Upload resource_spans
         let tracer_clone = self.tracer.clone();
         let executor_clone = self.executor.clone();
         let handle = executor_clone.spawn(async move {
             // Handle any errors here since we can't propagate them
-            if let Err(e) = tracer_clone.upload_traces(vec![resource_span]).await {
+            if let Err(e) = tracer_clone.upload_traces(resource_spans).await {
                 eprintln!("Failed to upload span: {}", e);
             }
         });
