@@ -2,35 +2,16 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex as SyncMutex;
-use rand::Rng as _;
 use smol::Executor;
 
+use crate::span_context::SpanContext;
 use crate::structs::*;
 use crate::tracer::OtlpTracer;
+use crate::utilities;
 
 thread_local! {
     pub static CURRENT_SPAN_CONTEXT: RefCell<Option<SpanContext>> = RefCell::new(None);
     pub static CURRENT_SPAN_GUARD: RefCell<Option<Arc<SpanGuard>>> = RefCell::new(None);
-}
-
-fn generate_trace_id() -> String {
-    let mut rng = rand::thread_rng();
-    let mut bytes = [0u8; 16];
-    rng.fill(&mut bytes);
-    hex::encode(bytes)
-}
-
-fn generate_span_id() -> String {
-    let mut rng = rand::thread_rng();
-    let mut bytes = [0u8; 8];
-    rng.fill(&mut bytes);
-    hex::encode(bytes)
-}
-
-#[derive(Clone)]
-pub struct SpanContext {
-    trace_id: String,
-    span_id: String,
 }
 
 #[derive(Clone)]
@@ -43,6 +24,7 @@ pub struct SpanGuard {
     line: u32,
     column: u32,
     context: SpanContext,
+    kind: SpanKind,
     parent_context: Option<SpanContext>,
     thread_id: String,
     thread_name: String,
@@ -53,7 +35,14 @@ pub struct SpanGuard {
 
 impl SpanGuard {
     #[track_caller]
-    pub fn start(executor: &Arc<Executor<'static>>, tracer: &Arc<OtlpTracer>, name: &str) -> Arc<Self> {
+    pub fn start(
+        executor: &Arc<Executor<'static>>, 
+        tracer: &Arc<OtlpTracer>, 
+        name: &str,
+        status: Status,
+        kind: SpanKind,
+        attributes: HashMap<String, String>
+    ) -> Arc<Self> {
         let location = std::panic::Location::caller();
 
         // Capture the parent context before creating new span
@@ -62,13 +51,15 @@ impl SpanGuard {
         });
         
         // Generate new span context
+        let trace_id = if let Some(parent) = &parent_context {
+            parent.trace_id.clone() // Inherit trace_id from parent
+        } else {
+            utilities::generate_trace_id()
+        };
+        let span_id = utilities::generate_span_id();
         let new_context = SpanContext {
-            trace_id: if let Some(parent) = &parent_context {
-                parent.trace_id.clone() // Inherit trace_id from parent
-            } else {
-                generate_trace_id()
-            },
-            span_id: generate_span_id(),
+            trace_id,       
+            span_id
         };
         
         // Set as current context
@@ -85,24 +76,19 @@ impl SpanGuard {
         let guard = Self {
             executor: executor.clone(),
             tracer: tracer.clone(),
-            start_time: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos(),
+            start_time: utilities::nanos(),
             name: name.to_string(),
             file: location.file().to_string(),
             line: location.line(),
             column: location.column(),
             context: new_context,
+            kind,
             parent_context,
             thread_id,
             thread_name,
             events: Arc::new(SyncMutex::new(vec![])),
-            attributes: Arc::new(SyncMutex::new(HashMap::new())),
-            status: Arc::new(SyncMutex::new(Status {
-                message: "".to_string(),
-                code: StatusCode::Unset as i64,
-            })),
+            attributes: Arc::new(SyncMutex::new(attributes)),
+            status: Arc::new(SyncMutex::new(status)),
         };
 
         // Wrap the guard in an Arc
@@ -117,10 +103,7 @@ impl SpanGuard {
     }
 
     pub fn push_event(&self, level: log::Level, args: &std::fmt::Arguments) {
-        let time = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
+        let time = utilities::nanos();
         
         let event = Event {
             name: args.to_string(),
@@ -166,10 +149,7 @@ impl Drop for SpanGuard {
         }
 
         // Get end time
-        let end_time = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
+        let end_time = utilities::nanos();
         
         // Prepare data for span
         let status = self.status.lock().unwrap().clone();
@@ -201,7 +181,7 @@ impl Drop for SpanGuard {
             name: self.name.clone(),
             start_time_unix_nano: self.start_time.to_string(),
             end_time_unix_nano: end_time.to_string(),
-            kind: SpanKind::Internal as i64,
+            kind: self.kind.clone() as i64,
             flags: TraceFlags::Sampled as i64,
             trace_state: "".to_string(),
             attributes: {

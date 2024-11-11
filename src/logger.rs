@@ -1,7 +1,7 @@
 use log::{Log, Metadata, Record};
 use simple_error::{box_err, SimpleResult};
 
-use crate::span::CURRENT_SPAN_GUARD;
+use crate::span_guard::CURRENT_SPAN_GUARD;
 
 pub struct SpanLogger;
 
@@ -27,7 +27,7 @@ impl Log for SpanLogger {
     }
 
     fn flush(&self) {
-        
+
     }
 }
 

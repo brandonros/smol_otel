@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use miniserde::Serialize;
 
 #[allow(dead_code)]
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 #[repr(i64)]
 pub enum SpanKind {
     Unspecified = 0,  // Default

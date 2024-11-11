@@ -1,7 +1,10 @@
+use std::sync::Arc;
+
 use http::{Request, StatusCode, Uri};
 use http_client::HttpClient;
 use simple_error::{box_err, SimpleResult};
 
+use crate::span_builder::SpanBuilder;
 use crate::structs::*;
 
 pub struct OtlpTracer {
@@ -35,5 +38,9 @@ impl OtlpTracer {
             return Err(box_err!(format!("failed to upload traces: {} {}", response.status(), response_body)));
         }
         Ok(())
+    }
+
+    pub fn span(self: &Arc<Self>, name: &str) -> SpanBuilder {
+        SpanBuilder::new(self.clone(), name)
     }
 }

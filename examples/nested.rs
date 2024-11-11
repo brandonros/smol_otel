@@ -5,32 +5,42 @@ use smol::MainExecutor as _;
 use smol::Executor;
 use smol::Timer;
 use smol_traces::OtlpTracer;
-use smol_traces::SpanGuard;
+use smol_traces::SpanKind;
 use smol_traces::StatusCode;
 
-async fn do_work3(executor: &Arc<Executor<'static>>, tracer: &Arc<OtlpTracer>) -> SimpleResult<()> {
-    let guard = SpanGuard::start(&executor, &tracer, "do_work3");
-    guard.set_attribute("key1", "value1");
-    guard.set_status("error", StatusCode::Error);
+async fn do_work3(executor: Arc<Executor<'static>>, tracer: Arc<OtlpTracer>) -> SimpleResult<()> {
+    let guard = tracer
+        .span("do_work3")
+        .with_attribute("key1", "value1")
+        .with_status("error", StatusCode::Error)
+        .with_kind(SpanKind::Internal)
+        .start(executor.clone());
     log::info!("hello from do_work3");
+    guard.set_attribute("key2", "value2");
     Ok(())
 }
 
-async fn do_work2(executor: &Arc<Executor<'static>>, tracer: &Arc<OtlpTracer>) -> SimpleResult<()> {
-    let _guard = SpanGuard::start(&executor, &tracer, "do_work2");
+async fn do_work2(executor: Arc<Executor<'static>>, tracer: Arc<OtlpTracer>) -> SimpleResult<()> {
+    let _guard = tracer
+        .span("do_work2")
+        .with_kind(SpanKind::Internal)
+        .start(executor.clone());
     log::info!("hello from do_work2");
-    do_work3(executor, tracer).await?;
+    do_work3(executor.clone(), tracer.clone()).await?;
     Ok(())
 }
 
-async fn do_work1(executor: &Arc<Executor<'static>>, tracer: &Arc<OtlpTracer>) -> SimpleResult<()> {
-    let _guard = SpanGuard::start(&executor, &tracer, "do_work1");
+async fn do_work1(executor: Arc<Executor<'static>>, tracer: Arc<OtlpTracer>) -> SimpleResult<()> {
+    let _guard = tracer
+        .span("do_work1")
+        .with_kind(SpanKind::Internal)
+        .start(executor.clone());
     log::info!("hello from do_work1");
-    do_work2(executor, tracer).await?;
+    do_work2(executor.clone(), tracer.clone()).await?;
     Ok(())
 }
 
-async fn async_main(executor: &Arc<Executor<'static>>) -> SimpleResult<()> {
+async fn async_main(executor: Arc<Executor<'static>>) -> SimpleResult<()> {
     // init logger
     smol_traces::logger::init()?;
 
@@ -41,13 +51,16 @@ async fn async_main(executor: &Arc<Executor<'static>>) -> SimpleResult<()> {
     let tracer = Arc::new(tracer);
 
     // create span
-    let guard = SpanGuard::start(&executor, &tracer, "async_main");
+    let guard = tracer
+        .span("async_main")
+        .with_kind(SpanKind::Internal)
+        .start(executor.clone());
 
     // log
     log::info!("hello, world!");
 
     // do work
-    do_work1(&executor, &tracer).await?;
+    do_work1(executor.clone(), tracer.clone()).await?;
 
     // drop
     drop(guard);
@@ -60,5 +73,5 @@ async fn async_main(executor: &Arc<Executor<'static>>) -> SimpleResult<()> {
 }
 
 fn main() -> SimpleResult<()> {
-    Arc::<Executor>::with_main(|executor| smol::block_on(async_main(executor)))
+    Arc::<Executor>::with_main(|executor| smol::block_on(async_main(executor.clone())))
 }
