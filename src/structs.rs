@@ -110,6 +110,14 @@ pub struct Link {
 }
 
 #[derive(Serialize)]
+#[repr(i64)]
+pub enum StatusCode {
+    Unset = 0,
+    Ok = 1,
+    Error = 2,
+}
+
+#[derive(Serialize, Clone)]
 pub struct Status {
     pub message: String,
     pub code: i64,

@@ -1,9 +1,12 @@
-use std::{cell::RefCell, collections::HashMap, sync::Arc};
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::sync::Arc;
 use std::sync::Mutex as SyncMutex;
 use rand::Rng as _;
 use smol::Executor;
 
-use crate::{structs::*, tracer::OtlpTracer};
+use crate::structs::*;
+use crate::tracer::OtlpTracer;
 
 thread_local! {
     pub static CURRENT_SPAN_CONTEXT: RefCell<Option<SpanContext>> = RefCell::new(None);
@@ -44,6 +47,8 @@ pub struct SpanGuard {
     thread_id: String,
     thread_name: String,
     events: Arc<SyncMutex<Vec<Event>>>,
+    attributes: Arc<SyncMutex<HashMap<String, String>>>,
+    status: Arc<SyncMutex<Status>>,
 }
 
 impl SpanGuard {
@@ -93,6 +98,11 @@ impl SpanGuard {
             thread_id,
             thread_name,
             events: Arc::new(SyncMutex::new(vec![])),
+            attributes: Arc::new(SyncMutex::new(HashMap::new())),
+            status: Arc::new(SyncMutex::new(Status {
+                message: "".to_string(),
+                code: StatusCode::Unset as i64,
+            })),
         };
 
         // Wrap the guard in an Arc
@@ -126,12 +136,23 @@ impl SpanGuard {
             events.push(event);
         }
     }
+
+    pub fn set_attribute(&self, key: &str, value: &str) {
+        if let Ok(mut attributes) = self.attributes.lock() {
+            attributes.insert(key.to_string(), value.to_string());
+        }
+    }
+
+    pub fn set_status(&self, message: &str, code: StatusCode) {
+        if let Ok(mut status) = self.status.lock() {
+            status.message = message.to_string();
+            status.code = code as i64;
+        }
+    }
 }
 
 impl Drop for SpanGuard {
-    fn drop(&mut self) {
-        println!("dropping {}", self.name);
-        
+    fn drop(&mut self) {        
         // Restore parent context
         if let Some(parent_ctx) = &self.parent_context {
             CURRENT_SPAN_CONTEXT.with(|current| {
@@ -151,6 +172,8 @@ impl Drop for SpanGuard {
             .as_nanos();
         
         // Prepare data for span
+        let status = self.status.lock().unwrap().clone();
+        let span_attributes = self.attributes.lock().unwrap().clone();
         let events = self.events.lock().unwrap().clone();
         let resource = Resource {
             attributes: {
@@ -188,6 +211,9 @@ impl Drop for SpanGuard {
                 map.insert("code.column".to_string(), self.column.to_string());
                 map.insert("thread.id".to_string(), self.thread_id.clone());
                 map.insert("thread.name".to_string(), self.thread_name.clone());
+                for (key, value) in span_attributes.iter() {
+                    map.insert(key.clone(), value.clone());
+                }
                 Attributes::from(map).0
             },
             events,
@@ -195,10 +221,7 @@ impl Drop for SpanGuard {
             dropped_links_count: 0, // TODO
             dropped_attributes_count: 0, // TODO
             dropped_events_count: 0, // TODO                
-            status: Status {
-                message: "".to_string(),
-                code: 0,
-            }
+            status
         };
         let resource_span = ResourceSpan {
             resource,
@@ -218,7 +241,5 @@ impl Drop for SpanGuard {
             }
         });
         handle.detach();
-
-        println!("dropped {}", self.name);
     }
 }

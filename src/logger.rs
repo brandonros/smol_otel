@@ -26,7 +26,9 @@ impl Log for SpanLogger {
         }
     }
 
-    fn flush(&self) {}
+    fn flush(&self) {
+        
+    }
 }
 
 pub fn init() -> SimpleResult<()> {

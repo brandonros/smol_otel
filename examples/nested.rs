@@ -6,9 +6,12 @@ use smol::Executor;
 use smol::Timer;
 use smol_traces::OtlpTracer;
 use smol_traces::SpanGuard;
+use smol_traces::StatusCode;
 
 async fn do_work3(executor: &Arc<Executor<'static>>, tracer: &Arc<OtlpTracer>) -> SimpleResult<()> {
-    let _guard = SpanGuard::start(&executor, &tracer, "do_work3");
+    let guard = SpanGuard::start(&executor, &tracer, "do_work3");
+    guard.set_attribute("key1", "value1");
+    guard.set_status("error", StatusCode::Error);
     log::info!("hello from do_work3");
     Ok(())
 }
