@@ -66,7 +66,7 @@ impl SpanLogger {
             }
         }
         
-        // If no directives, default to Info
+        // Only default to Info if no RUST_LOG was set
         if directives.is_empty() {
             directives.push(LogDirective {
                 module: None,
