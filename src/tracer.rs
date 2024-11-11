@@ -4,11 +4,15 @@ use simple_error::{box_err, SimpleResult};
 
 use crate::structs::*;
 
-pub struct OtlpTracer {}
+pub struct OtlpTracer {
+    pub endpoint: Uri,
+    pub service_name: String,
+}
 
 impl OtlpTracer {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(endpoint: &str, service_name: &str) -> SimpleResult<Self> {
+        let endpoint: Uri = endpoint.parse()?;
+        Ok(Self { endpoint, service_name: service_name.to_string() })
     }
 
     pub async fn upload_traces(&self, resource_spans: Vec<ResourceSpan>) -> SimpleResult<()> {
@@ -17,14 +21,12 @@ impl OtlpTracer {
         };
         let request_body = miniserde::json::to_string(&root);
         let request_body_bytes = request_body.as_bytes().to_vec();
-        let uri: Uri = "http://tempo.node.external/v1/traces".parse()?;
-        //let uri: Uri = "http://localhost:4318/v1/traces".parse()?;
         let request: Request<Vec<u8>> = Request::builder()
             .method("POST")
-            .uri(&uri)
+            .uri(&self.endpoint)
             .header("Content-Type", "application/json")
             .header("Content-Length", request_body_bytes.len().to_string())
-            .header("Host", uri.host().unwrap_or_default())
+            .header("Host", self.endpoint.host().unwrap_or_default())
             .body(request_body_bytes)?;
         let mut stream = HttpClient::create_connection(&request).await?;
         let response = HttpClient::request(&mut stream, &request).await?;
