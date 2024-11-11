@@ -1,5 +1,5 @@
 [package]
-name = "smol_traces"
+name = "smol_otel"
 version = "0.1.0"
 edition = "2021"
 
@@ -18,3 +18,5 @@ rand = "0.8.5"
 hex = "0.4.3"
 # logging
 log = "0.4.22"
+# time
+time = { version = "0.3.36", features = ["formatting"] }

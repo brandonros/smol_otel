@@ -2,11 +2,8 @@ use std::sync::Arc;
 
 use simple_error::SimpleResult;
 use smol::MainExecutor as _;
-use smol::Executor;
-use smol::Timer;
-use smol_traces::OtlpTracer;
-use smol_traces::SpanKind;
-use smol_traces::StatusCode;
+use smol::{Executor, Timer};
+use smol_otel::{OtlpTracer, SpanKind, StatusCode};
 
 async fn do_work3(executor: Arc<Executor<'static>>, tracer: Arc<OtlpTracer>) -> SimpleResult<()> {
     let guard = tracer
@@ -42,7 +39,7 @@ async fn do_work1(executor: Arc<Executor<'static>>, tracer: Arc<OtlpTracer>) -> 
 
 async fn async_main(executor: Arc<Executor<'static>>) -> SimpleResult<()> {
     // init logger
-    smol_traces::logger::init()?;
+    smol_otel::logger::init()?;
 
     // create tracer
     let endpoint = "http://tempo.node.external/v1/traces";

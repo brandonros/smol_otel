@@ -20,3 +20,9 @@ pub fn nanos() -> u128 {
         .unwrap()
         .as_nanos()
 }
+
+pub fn iso_timestamp() -> String {
+    time::OffsetDateTime::now_utc()
+        .format(&time::format_description::well_known::Iso8601::DEFAULT)
+        .unwrap()
+}
