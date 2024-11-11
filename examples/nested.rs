@@ -7,13 +7,22 @@ use smol::Timer;
 use smol_traces::OtlpTracer;
 use smol_traces::SpanGuard;
 
+async fn do_work3(executor: &Arc<Executor<'static>>, tracer: &Arc<OtlpTracer>) -> SimpleResult<()> {
+    let _guard = SpanGuard::start(&executor, &tracer, "do_work3");
+    log::info!("hello from do_work3");
+    Ok(())
+}
+
 async fn do_work2(executor: &Arc<Executor<'static>>, tracer: &Arc<OtlpTracer>) -> SimpleResult<()> {
     let _guard = SpanGuard::start(&executor, &tracer, "do_work2");
+    log::info!("hello from do_work2");
+    do_work3(executor, tracer).await?;
     Ok(())
 }
 
 async fn do_work1(executor: &Arc<Executor<'static>>, tracer: &Arc<OtlpTracer>) -> SimpleResult<()> {
     let _guard = SpanGuard::start(&executor, &tracer, "do_work1");
+    log::info!("hello from do_work1");
     do_work2(executor, tracer).await?;
     Ok(())
 }

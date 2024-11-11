@@ -130,10 +130,19 @@ impl SpanGuard {
 
 impl Drop for SpanGuard {
     fn drop(&mut self) {
+        println!("dropping {}", self.name);
+        
         // Restore parent context
-        CURRENT_SPAN_CONTEXT.with(|current| {
-            *current.borrow_mut() = self.parent_context.clone();
-        });
+        if let Some(parent_ctx) = &self.parent_context {
+            CURRENT_SPAN_CONTEXT.with(|current| {
+                *current.borrow_mut() = Some(parent_ctx.clone());
+            });
+        } else {
+            // Only clear if no parent context
+            CURRENT_SPAN_GUARD.with(|current| {
+                *current.borrow_mut() = None;
+            });
+        }
 
         // Get end time
         let end_time = std::time::SystemTime::now()
@@ -210,6 +219,6 @@ impl Drop for SpanGuard {
         });
         handle.detach();
 
-        // TODO: clear current span guard but we are already borrowed?
+        println!("dropped {}", self.name);
     }
 }
