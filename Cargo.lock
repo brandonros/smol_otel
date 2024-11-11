@@ -393,6 +393,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "51d515d32fb182ee37cda2ccdcb92950d6a3c2893aa280e540671c2cd0f3b1d9"
 
 [[package]]
+name = "once_cell"
+version = "1.20.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1261fe7e33c73b354eab43b1273a57c8f967d0391e80353e51f764ac02cf6775"
+
+[[package]]
 name = "parking"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -647,6 +653,7 @@ dependencies = [
  "http_client",
  "log",
  "miniserde",
+ "once_cell",
  "rand",
  "simple_error 0.1.0 (git+https://github.com/brandonros/simple_error.git?rev=049dbf9bf5b5b918b93e60767b7ea62df28e95af)",
  "smol",

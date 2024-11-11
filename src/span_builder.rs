@@ -1,9 +1,8 @@
-use std::{collections::HashMap, sync::Arc};
-
-use smol::Executor;
+use std::collections::HashMap;
+use std::sync::Arc;
 
 use crate::tracer::OtlpTracer;
-use crate::structs::*;
+use crate::{globals, structs::*};
 use crate::span_guard::SpanGuard;
 
 pub struct SpanBuilder {
@@ -43,9 +42,9 @@ impl SpanBuilder {
         self
     }
 
-    pub fn start(self, executor: Arc<Executor<'static>>) -> Arc<SpanGuard> {
+    pub fn start(self) -> Arc<SpanGuard> {
         SpanGuard::start(
-            &executor, 
+            &globals::executor(), 
             &self.tracer, 
             &self.name,
             self.status,

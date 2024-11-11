@@ -7,6 +7,7 @@ use simple_error::{box_err, SimpleResult};
 use crate::span_builder::SpanBuilder;
 use crate::structs::*;
 
+#[derive(Debug)]
 pub struct OtlpTracer {
     pub endpoint: Uri,
     pub service_name: String,
