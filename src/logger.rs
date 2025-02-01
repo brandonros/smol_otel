@@ -1,12 +1,12 @@
+use std::env;
+use std::str::FromStr;
+
 use log::{Log, Metadata, Record};
 use miniserde::Serialize;
 use simple_error::{box_err, SimpleResult};
 
 use crate::span_guard::CURRENT_SPAN_GUARD;
 use crate::utilities;
-
-use std::env;
-use std::str::FromStr;
 
 #[derive(Serialize)]
 struct LogMessage {

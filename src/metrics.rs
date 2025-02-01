@@ -1,11 +1,11 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::time::SystemTime;
+use std::collections::HashMap;
 
 use crate::structs::*;
 use crate::utilities;
 use crate::tracer::OtlpTracer;
-use std::collections::HashMap;
 
 pub struct Counter {
     tracer: Arc<OtlpTracer>,

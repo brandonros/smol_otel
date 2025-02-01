@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex as SyncMutex;
+
 use smol::Executor;
 
 use crate::span_context::SpanContext;

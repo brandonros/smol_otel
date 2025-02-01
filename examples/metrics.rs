@@ -1,8 +1,8 @@
 use std::sync::Arc;
+use std::time::Duration;
 use simple_error::SimpleResult;
 use smol::MainExecutor as _;
 use smol::{Executor, Timer};
-use std::time::Duration;
 use smol_otel::{Counter, Gauge, OtlpTracer};
 
 async fn async_main(_executor: Arc<Executor<'static>>) -> SimpleResult<()> {

@@ -1,6 +1,8 @@
 use std::sync::Arc;
+
 use smol::Executor;
 use once_cell::sync::OnceCell;
+
 use crate::tracer::OtlpTracer;
 
 static GLOBAL_EXECUTOR: OnceCell<Arc<Executor<'static>>> = OnceCell::new();

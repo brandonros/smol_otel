@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::tracer::OtlpTracer;
-use crate::{globals, structs::*};
+use crate::globals;
+use crate::structs::*;
 use crate::span_guard::SpanGuard;
 
 pub struct SpanBuilder {
