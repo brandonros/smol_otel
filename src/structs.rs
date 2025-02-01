@@ -137,3 +137,51 @@ impl From<HashMap<String, String>> for Attributes {
         )
     }
 }
+
+#[derive(Serialize)]
+pub struct ResourceMetricsRoot {
+    #[serde(rename = "resourceMetrics")]
+    pub resource_metrics: Vec<ResourceMetrics>,
+}
+
+#[derive(Serialize)]
+pub struct ResourceMetrics {
+    pub resource: Resource,
+    #[serde(rename = "scopeMetrics")]
+    pub scope_metrics: Vec<ScopeMetrics>,
+}
+
+#[derive(Serialize)]
+pub struct ScopeMetrics {
+    pub scope: Scope,
+    pub metrics: Vec<Metric>,
+}
+
+#[derive(Serialize)]
+pub struct Metric {
+    pub name: String,
+    pub description: String,
+    pub unit: String,
+    pub sum: Sum,
+}
+
+#[derive(Serialize)]
+pub struct Sum {
+    #[serde(rename = "aggregationTemporality")]
+    pub aggregation_temporality: i64,
+    #[serde(rename = "isMonotonic")]
+    pub is_monotonic: bool,
+    #[serde(rename = "dataPoints")]
+    pub data_points: Vec<DataPoint>,
+}
+
+#[derive(Serialize)]
+pub struct DataPoint {
+    pub attributes: Vec<Attribute>,
+    #[serde(rename = "startTimeUnixNano")]
+    pub start_time_unix_nano: String,
+    #[serde(rename = "timeUnixNano")]
+    pub time_unix_nano: String,
+    #[serde(rename = "asDouble")]
+    pub as_double: i64,
+}

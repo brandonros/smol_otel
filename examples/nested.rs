@@ -40,9 +40,10 @@ async fn async_main(executor: Arc<Executor<'static>>) -> SimpleResult<()> {
     smol_otel::logger::init()?;
 
     // create tracer
-    let endpoint = "http://tempo.node.external/v1/traces";
+    let traces_endpoint = "http://tempo.node.external/v1/traces";
+    let metrics_endpoint = "http://tempo.node.external/v1/metrics";
     let service_name = "smol_tracer";
-    let tracer = OtlpTracer::new(endpoint, service_name)?;
+    let tracer = OtlpTracer::new(traces_endpoint, metrics_endpoint, service_name)?;
     let tracer = Arc::new(tracer);
 
     // register globals
