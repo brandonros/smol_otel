@@ -1,12 +1,10 @@
-use std::sync::Arc;
-
+use std::sync::{Arc, OnceLock};
 use smol::Executor;
-use once_cell::sync::OnceCell;
 
 use crate::tracer::OtlpTracer;
 
-static GLOBAL_EXECUTOR: OnceCell<Arc<Executor<'static>>> = OnceCell::new();
-static GLOBAL_TRACER: OnceCell<Arc<OtlpTracer>> = OnceCell::new();
+static GLOBAL_EXECUTOR: OnceLock<Arc<Executor<'static>>> = OnceLock::new();
+static GLOBAL_TRACER: OnceLock<Arc<OtlpTracer>> = OnceLock::new();
 
 pub fn register(executor: Arc<Executor<'static>>, tracer: Arc<OtlpTracer>) {
     GLOBAL_EXECUTOR.set(executor).expect("Failed to set global executor");
