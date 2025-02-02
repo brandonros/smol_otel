@@ -61,6 +61,7 @@ impl OtlpTracer {
     }
 
     pub async fn upload_traces(&self, resource_spans: Vec<ResourceSpan>) -> SimpleResult<()> {
+        log::info!("uploading traces");
         let root = ResourceSpansRoot { resource_spans };
         let request_body = miniserde::json::to_string(&root);
         self.send_request(&self.traces_endpoint, request_body, "traces").await
