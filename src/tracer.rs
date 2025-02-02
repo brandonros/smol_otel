@@ -12,13 +12,20 @@ pub struct OtlpTracer {
     pub traces_endpoint: Uri,
     pub metrics_endpoint: Uri,
     pub service_name: String,
+    pub headers: String,
 }
 
 impl OtlpTracer {
     pub fn new(traces_endpoint: &str, metrics_endpoint: &str, service_name: &str) -> SimpleResult<Self> {
+        let headers= std::env::var("OTEL_EXPORTER_OTLP_HEADERS").unwrap_or("".to_string());
         let traces_endpoint: Uri = traces_endpoint.parse()?;
         let metrics_endpoint: Uri = metrics_endpoint.parse()?;
-        Ok(Self { traces_endpoint, metrics_endpoint, service_name: service_name.to_string() })
+        Ok(Self { 
+            traces_endpoint, 
+            metrics_endpoint, 
+            service_name: service_name.to_string(), 
+            headers
+        })
     }
 
     pub async fn upload_traces(&self, resource_spans: Vec<ResourceSpan>) -> SimpleResult<()> {
@@ -27,13 +34,20 @@ impl OtlpTracer {
         };
         let request_body = miniserde::json::to_string(&root);
         let request_body_bytes = request_body.as_bytes().to_vec();
-        let request: Request<Vec<u8>> = Request::builder()
+        let mut request_builder = Request::builder()
             .method("POST")
             .uri(&self.traces_endpoint)
             .header("Content-Type", "application/json")
             .header("Content-Length", request_body_bytes.len().to_string())
-            .header("Host", self.traces_endpoint.host().unwrap_or_default())
-            .body(request_body_bytes)?;
+            .header("Host", self.traces_endpoint.host().unwrap_or_default());
+        if !self.headers.is_empty() {
+            for header in self.headers.split(',') {
+                if let Some((key, value)) = header.split_once('=') {
+                    request_builder = request_builder.header(key.trim(), value.trim());
+                }
+            }
+        }
+        let request: Request<Vec<u8>> = request_builder.body(request_body_bytes)?;
         let mut stream = HttpClient::create_connection(&request).await?;
         let response = HttpClient::request(&mut stream, &request).await?;
         let response_body = String::from_utf8(response.body().clone())?;
@@ -49,13 +63,20 @@ impl OtlpTracer {
         };
         let request_body = miniserde::json::to_string(&root);
         let request_body_bytes = request_body.as_bytes().to_vec();
-        let request: Request<Vec<u8>> = Request::builder()
+        let mut request_builder = Request::builder()
             .method("POST")
-            .uri(&self.metrics_endpoint)
+            .uri(&self.traces_endpoint)
             .header("Content-Type", "application/json")
             .header("Content-Length", request_body_bytes.len().to_string())
-            .header("Host", self.metrics_endpoint.host().unwrap_or_default())
-            .body(request_body_bytes)?;
+            .header("Host", self.traces_endpoint.host().unwrap_or_default());
+        if !self.headers.is_empty() {
+            for header in self.headers.split(',') {
+                if let Some((key, value)) = header.split_once('=') {
+                    request_builder = request_builder.header(key.trim(), value.trim());
+                }
+            }
+        }
+        let request: Request<Vec<u8>> = request_builder.body(request_body_bytes)?;
         let mut stream = HttpClient::create_connection(&request).await?;
         let response = HttpClient::request(&mut stream, &request).await?;
         let response_body = String::from_utf8(response.body().clone())?;

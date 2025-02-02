@@ -329,7 +329,7 @@ dependencies = [
 [[package]]
 name = "http_client"
 version = "0.1.0"
-source = "git+https://github.com/brandonros/http_client.git?rev=a88f8c2b631945c3f353a7255a1cf7ab153d6287#a88f8c2b631945c3f353a7255a1cf7ab153d6287"
+source = "git+https://github.com/brandonros/http_client.git?rev=4da3f597e190270322ffc8abae7f2e78e1fe23ba#4da3f597e190270322ffc8abae7f2e78e1fe23ba"
 dependencies = [
  "async-io",
  "async-tls",

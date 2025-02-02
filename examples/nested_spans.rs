@@ -40,8 +40,8 @@ async fn async_main(executor: Arc<Executor<'static>>) -> SimpleResult<()> {
     smol_otel::logger::init()?;
 
     // create tracer
-    let traces_endpoint = "http://tempo.node.external/v1/traces";
-    let metrics_endpoint = "http://tempo.node.external/v1/metrics";
+    let traces_endpoint = "https://otlp-gateway-prod-us-east-0.grafana.net/otlp/v1/traces";
+    let metrics_endpoint = "https://otlp-gateway-prod-us-east-0.grafana.net/otlp/v1/metrics";
     let service_name = "smol_tracer";
     let tracer = OtlpTracer::new(traces_endpoint, metrics_endpoint, service_name)?;
     let tracer = Arc::new(tracer);

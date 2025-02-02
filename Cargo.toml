@@ -10,7 +10,7 @@ simple_error = { git = "https://github.com/brandonros/simple_error.git", rev = "
 smol = { git = "https://github.com/brandonros/smol.git", rev = "e593cac01d2ee4a1241b8c292f61b8a6d800bb08" }
 # http
 http = "1.0.0"
-http_client = { git = "https://github.com/brandonros/http_client.git", rev = "a88f8c2b631945c3f353a7255a1cf7ab153d6287" }
+http_client = { git = "https://github.com/brandonros/http_client.git", rev = "4da3f597e190270322ffc8abae7f2e78e1fe23ba" }
 # json
 miniserde = "0.1.40"
 # random hex generation
