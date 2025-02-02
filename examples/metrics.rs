@@ -5,7 +5,7 @@ use smol::MainExecutor as _;
 use smol::{Executor, Timer};
 use smol_otel::{Counter, Gauge, OtlpTracer};
 
-async fn async_main(_executor: Arc<Executor<'static>>) -> SimpleResult<()> {
+async fn async_main(executor: Arc<Executor<'static>>) -> SimpleResult<()> {
     // init logger
     smol_otel::logger::init()?;
 
@@ -15,6 +15,9 @@ async fn async_main(_executor: Arc<Executor<'static>>) -> SimpleResult<()> {
     let service_name = "order-processing-service";
     let tracer = OtlpTracer::new(traces_endpoint, metrics_endpoint, service_name)?;
     let tracer = Arc::new(tracer);
+
+    // register globals
+    smol_otel::globals::register(executor.clone(), tracer.clone());
 
     // Create a counter for processed orders
     let orders_processed = Counter::new(
